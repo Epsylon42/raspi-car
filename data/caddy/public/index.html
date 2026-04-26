@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+    <head>
+        <title>
+            RCCar control
+        </title>
+        <style>
+#video {
+    display: block;
+    background-color: black;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1em;
+    transform: scale(-1);
+}
+
+#keys {
+    display: grid;
+    grid-template-areas:
+        ". W ."
+        "A S D";
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.key {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+
+    background-color: gray;
+    border: 1px solid black;
+
+    width: 50px;
+    height: 50px;
+}
+
+.KeyW {
+    grid-area: W;
+}
+.KeyS {
+    grid-area: S;
+}
+.KeyA {
+    grid-area: A;
+}
+.KeyD {
+    grid-area: D;
+}
+
+#drive-speed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    margin-top: 2em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#drive-speed input {
+    width: 300px;
+}
+
+        </style>
+        <script defer src="/cam/reader.js"></script>
+        <script defer src="/scripts/control.js"></script>
+    </head>
+    <body>
+        <video id="video"></video>
+        <div id="keys">
+            <div class="key KeyW">W</div>
+            <div class="key KeyS">S</div>
+            <div class="key KeyA">A</div>
+            <div class="key KeyD">D</div>
+        </div>
+
+        <div id="message"></div>
+        
+        <script>
+const video = document.getElementById('video');
+const message = document.getElementById('message');
+
+video.muted = true;
+video.autoplay = true;
+video.playsInline = true;
+
+const setMessage = (str) => {
+  message.innerText = str;
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  new MediaMTXWebRTCReader({
+    url: new URL('cam/whep', `http://${window.location.hostname}:8889/cam`) + window.location.search,
+    onError: (err) => {
+      setMessage(err);
+    },
+    onTrack: (evt) => {
+      setMessage('');
+      video.srcObject = evt.streams[0];
+    },
+  });
+});
+        </script>
+    </body>
+</html>

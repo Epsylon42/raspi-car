@@ -1,0 +1,8 @@
+http://:80 {
+    file_server browse {
+        root ./public
+    }
+
+    reverse_proxy /cam/reader.js http://localhost:8889
+    reverse_proxy /api/* http://localhost:3000
+}
