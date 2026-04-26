@@ -12,6 +12,8 @@ rustPlatform.buildRustPackage {
     pigpio
   ];
 
+  passthru.config-file = ./gpiosrv.json;
+
   postInstallPhase = ''
     mkdir -p $out/share
     cp ${./gpiosrv.json} $out/share/gpiosrv.json

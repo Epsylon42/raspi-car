@@ -48,7 +48,7 @@
     text = ''
       mkdir -p /root
       ${copy} ${./data}/ /root
-      ${copy} ${./pkgs/gpiosrv/gpiosrv.json} /root/gpiosrv.json
+      ${copy} ${pkgs.gpiosrv.config-file} /root/gpiosrv.json
       chmod -R +w /root
     '';
   };

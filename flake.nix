@@ -9,7 +9,7 @@
       sys.cross = "armv6l-linux";
 
       my-pkgs = pkgs: {
-        balena-wifi-connect = pkgs.callPackage ./balena-wifi/package.nix {};
+        balena-wifi-connect = pkgs.callPackage ./pkgs/balena-wifi/package.nix {};
         gpiosrv = pkgs.callPackage ./pkgs/gpiosrv/package.nix {};
         gst-rtsp = pkgs.callPackage ./pkgs/gst-rtsp.nix {};
         gst-videoparsers = pkgs.callPackage ./pkgs/gst-videoparsers.nix {};
@@ -33,7 +33,7 @@
           ./sd-image-raspberrypi.nix
           ./configuration.nix
           ./services.nix
-          ./balena-wifi/module.nix
+          ./pkgs/balena-wifi/module.nix
         ];
       };
       images.rpi = nixosConfigurations.raspi-car.config.system.build.sdImage;
