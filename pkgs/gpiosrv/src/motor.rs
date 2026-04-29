@@ -96,10 +96,10 @@ impl Motor {
     }
 
     pub fn set_state(&mut self, state: MotorState) {
+        self.last_ping = Instant::now();
         if state == self.state {
             return;
         }
-        self.last_ping = Instant::now();
         self.set_state_impl(state)
     }
 

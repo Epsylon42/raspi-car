@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
 use std::sync::Arc;
-
 use std::time::{Duration, Instant};
 
 #[macro_use]
 extern crate rocket;
 use rocket::tokio::sync::{Mutex, MutexGuard, MappedMutexGuard};
+use rocket_ws as ws;
 use rust_pigpio as gpio;
 
 mod motor;
@@ -110,58 +110,62 @@ impl Drop for StateData {
 
 type State = Arc<StateData>;
 
-impl<'a> rocket::request::FromParam<'a> for motor::MotorState {
-    type Error = String;
+fn parse_motor_cmd(s: &str) -> Option<motor::MotorState> {
+    match s {
+        "f" | "r" => Some(motor::MotorState::RunningP),
+        "b" | "l" => Some(motor::MotorState::RunningN),
+        "s" => Some(motor::MotorState::Stopped),
+        "br" => Some(motor::MotorState::Braking),
+        _ => None,
+    }
+}
 
-    fn from_param(param: &'a str) -> Result<Self, Self::Error> {
-        match param {
-            "f" | "r" => Ok(motor::MotorState::RunningP),
-            "b" | "l" => Ok(motor::MotorState::RunningN),
-            "s" => Ok(motor::MotorState::Stopped),
-            "br" => Ok(motor::MotorState::Braking),
+#[get("/ws")]
+fn ws_control(ws: ws::WebSocket, state: &rocket::State<State>) -> ws::Channel<'static> {
+    let state = (*state).clone();
+    ws.channel(move |mut stream| Box::pin(async move {
+        use rocket::futures::StreamExt;
+        while let Some(msg) = stream.next().await {
+            let msg = match msg {
+                Ok(msg) => msg,
+                Err(_) => break,
+            };
+            let text = match msg {
+                ws::Message::Text(t) => t,
+                ws::Message::Close(_) => break,
+                _ => continue,
+            };
 
-            _ => Err(String::from("unknown motor command")),
+            // Format: "drive_cmd,turn_cmd" e.g. "f,l", "s,s"
+            let parts: Vec<&str> = text.split(',').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+
+            let drive_cmd = match parse_motor_cmd(parts[0]) {
+                Some(cmd) => cmd,
+                None => continue,
+            };
+            let turn_cmd = match parse_motor_cmd(parts[1]) {
+                Some(cmd) => cmd,
+                None => continue,
+            };
+
+            if let Some(mut gpio) = state.ensure_gpio() {
+                gpio.drive.set_state(drive_cmd);
+                gpio.turn.set_state(turn_cmd);
+            }
         }
-    }
+
+        // Stop motors when client disconnects
+        if let Some(mut gpio) = state.ensure_gpio() {
+            gpio.drive.set_state(motor::MotorState::Stopped);
+            gpio.turn.set_state(motor::MotorState::Stopped);
+        }
+
+        Ok(())
+    }))
 }
-
-#[post("/api/motor/drive/<cmd>")]
-fn drive(cmd: motor::MotorState, state: &rocket::State<State>) {
-    eprintln!("drive - {:?}", cmd);
-
-    if let Some(mut gpio) = state.ensure_gpio() {
-        gpio.drive.set_state(cmd);
-    }
-}
-
-#[post("/api/motor/turn/<cmd>")]
-fn turn(cmd: motor::MotorState, state: &rocket::State<State>) {
-    eprintln!("turn - {:?}", cmd);
-
-    if let Some(mut gpio) = state.ensure_gpio() {
-        gpio.turn.set_state(cmd);
-    }
-}
-
-// #[get("/api/motor/drive/power")]
-// async fn get_power(state: &rocket::State<State>) -> String {
-//     if let Some(ref motor) = state.turn {
-//         let motor = motor.lock().await;
-//         motor.power().to_string()
-//     } else {
-//         String::from("100")
-//     }
-// }
-//
-// #[post("/api/motor/drive/power/<value>")]
-// async fn set_power(value: u8, state: &rocket::State<State>) {
-//     eprintln!("drive power = {}", value);
-//
-//     if let Some(ref motor) = state.turn {
-//         let mut motor = motor.lock().await;
-//         motor.set_power(value);
-//     }
-// }
 
 #[launch]
 async fn rocket() -> _ {
@@ -212,5 +216,5 @@ async fn rocket() -> _ {
 
     rocket::build()
         .manage(state.clone())
-        .mount("/", routes![drive, turn, /* get_power, set_power */])
+        .mount("/", routes![ws_control])
 }

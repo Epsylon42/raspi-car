@@ -1,8 +1,3 @@
-function fetchApi(addr, method) {
-    // return fetch(`http://${window.location.hostname}:3000${addr}`, { method });
-    return fetch(addr, { method });
-}
-
 class ControlState {
     constructor() {
         this.keys = {
@@ -11,35 +6,58 @@ class ControlState {
             left: 'KeyA',
             right: 'KeyD',
         };
+        this.pressed = new Set();
+        this.ws = null;
+        this.interval = null;
     }
 
-    stop(motor) {
-        fetchApi(`/api/motor/${motor}/s`, 'POST');
+    connect() {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.ws = new WebSocket(`${proto}//${window.location.host}/ws`);
+
+        this.ws.onopen = () => {
+            this.interval = setInterval(() => this.sendState(), 50);
+        };
+
+        this.ws.onclose = () => {
+            clearInterval(this.interval);
+            this.interval = null;
+            setTimeout(() => this.connect(), 1000);
+        };
+
+        this.ws.onerror = () => {
+            this.ws.close();
+        };
     }
 
-    run(motor, dir) {
-        fetchApi(`/api/motor/${motor}/${dir}`, 'POST');
+    driveCmd() {
+        const fwd = this.pressed.has(this.keys.forward);
+        const bwd = this.pressed.has(this.keys.backward);
+        if (fwd && !bwd) return 'f';
+        if (bwd && !fwd) return 'b';
+        return 's';
+    }
+
+    turnCmd() {
+        const left = this.pressed.has(this.keys.left);
+        const right = this.pressed.has(this.keys.right);
+        if (left && !right) return 'l';
+        if (right && !left) return 'r';
+        return 's';
+    }
+
+    sendState() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(`${this.driveCmd()},${this.turnCmd()}`);
+        }
     }
 }
 
 var __controlState = new ControlState();
+__controlState.connect();
 
 document.body.onkeydown = ev => {
-    switch (ev.code) {
-    case __controlState.keys.forward:
-        __controlState.run('drive', 'f');
-        break;
-    case __controlState.keys.backward:
-        __controlState.run('drive', 'b');
-        break;
-
-    case __controlState.keys.left:
-        __controlState.run('turn', 'l');
-        break;
-    case __controlState.keys.right:
-        __controlState.run('turn', 'r');
-        break;
-    }
+    __controlState.pressed.add(ev.code);
 
     const el = document.querySelector(`.key.${ev.code}`);
     if (el != null) {
@@ -48,17 +66,7 @@ document.body.onkeydown = ev => {
 }
 
 document.body.onkeyup = ev => {
-    switch (ev.code) {
-    case __controlState.keys.forward:
-    case __controlState.keys.backward:
-        __controlState.stop('drive');
-        break;
-
-    case __controlState.keys.left:
-    case __controlState.keys.right:
-        __controlState.stop('turn');
-        break;
-    }
+    __controlState.pressed.delete(ev.code);
 
     const el = document.querySelector(`.key.${ev.code}`);
     if (el != null) {

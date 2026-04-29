@@ -4,5 +4,5 @@ http://:80 {
     }
 
     reverse_proxy /cam/reader.js http://localhost:8889
-    reverse_proxy /api/* http://localhost:3000
+    reverse_proxy /ws http://localhost:3000
 }

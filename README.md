@@ -4,7 +4,7 @@ Raspberry Pi Zero NixOS configuration for an RC car with live video streaming an
 
 ## Components
 
-- **gpiosrv** — Rust (Rocket) HTTP server that drives motors via GPIO/pigpio
+- **gpiosrv** — Rust (Rocket) websocket server that drives motors via GPIO/pigpio
 - **Web UI** — Browser-based control panel with WASD keys and live WebRTC video feed
 - **mediamtx** — Video streaming server using GStreamer and the Pi's V4L2 camera
 - **Caddy** — Reverse proxy serving the web UI
