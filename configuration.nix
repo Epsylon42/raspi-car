@@ -25,6 +25,7 @@
     enable = true;
     plugins = lib.mkForce [];
   };
+  security.polkit.enable = lib.mkForce false;
 
   networking = {
     hostName = "raspi-car";
