@@ -1,9 +1,4 @@
-use rocket::{time::Duration, tokio::time::Instant};
 use rust_pigpio::{self as gpio, set_mode, write, pwm};
-
-fn one() -> f32 {
-    1.0
-}
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Config {
@@ -16,8 +11,8 @@ pub struct Config {
     #[serde(default)]
     pub pwm_default_power: Option<u8>,
 
-    #[serde(default = "one")]
-    pub shutdown_timeout: f32,
+    #[serde(default)]
+    pub auto_brake: bool
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,7 +28,6 @@ pub struct Motor {
     neg_pin: u32,
     state: MotorState,
     power: u32,
-    last_ping: Instant,
     config: Config,
 }
 
@@ -44,19 +38,21 @@ impl Motor {
             neg_pin: config.neg_pin,
             state: MotorState::Stopped,
             power: 100,
-            last_ping: Instant::now(),
             config: config.clone(),
         };
 
-        set_mode(motor.pos_pin, gpio::OUTPUT);
-        write(motor.pos_pin, gpio::OFF);
-        set_mode(motor.neg_pin, gpio::OUTPUT);
-        write(motor.neg_pin, gpio::OFF);
+        #[allow(unused)]
+        {
+            set_mode(motor.pos_pin, gpio::OUTPUT);
+            write(motor.pos_pin, gpio::OFF);
+            set_mode(motor.neg_pin, gpio::OUTPUT);
+            write(motor.neg_pin, gpio::OFF);
 
-        pwm::set_pwm_frequency(motor.pos_pin, motor.freq());
-        pwm::set_pwm_frequency(motor.neg_pin, motor.freq());
-        pwm::set_pwm_range(motor.pos_pin, 100);
-        pwm::set_pwm_range(motor.neg_pin, 100);
+            pwm::set_pwm_frequency(motor.pos_pin, motor.freq());
+            pwm::set_pwm_frequency(motor.neg_pin, motor.freq());
+            pwm::set_pwm_range(motor.pos_pin, 100);
+            pwm::set_pwm_range(motor.neg_pin, 100);
+        }
 
         if let Some(power) = config.pwm_default_power {
             motor.set_power(power);
@@ -96,7 +92,6 @@ impl Motor {
     }
 
     pub fn set_state(&mut self, state: MotorState) {
-        self.last_ping = Instant::now();
         if state == self.state {
             return;
         }
@@ -105,10 +100,16 @@ impl Motor {
 
     fn set_state_impl(&mut self, state: MotorState) {
         self.state = state;
+        #[allow(unused)]
         match state {
             MotorState::Stopped => {
-                write(self.pos_pin, gpio::OFF);
-                write(self.neg_pin, gpio::OFF);
+                if self.config.auto_brake {
+                    write(self.pos_pin, gpio::ON);
+                    write(self.neg_pin, gpio::ON);
+                } else {
+                    write(self.pos_pin, gpio::OFF);
+                    write(self.neg_pin, gpio::OFF);
+                }
             }
             MotorState::Braking => {
                 write(self.pos_pin, gpio::ON);
@@ -132,15 +133,6 @@ impl Motor {
                     write(self.neg_pin, gpio::ON);
                 }
             }
-        }
-    }
-
-    pub fn check_timeout(&mut self) {
-        if self.is_running()
-            && Instant::now() - self.last_ping
-                >= Duration::seconds_f32(self.config.shutdown_timeout)
-        {
-            self.set_state(MotorState::Stopped);
         }
     }
 }

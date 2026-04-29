@@ -4,11 +4,11 @@
         "neg_pin": 19,
         "pwm_frequency": 10000,
         "pwm_default_power": 60,
-        "shutdown_timeout": 1
+        "auto_brake": false
     },
     "turn": {
         "pos_pin": 18,
-        "neg_pin": 12,
-        "shutdown_timeout": 5
-    }
+        "neg_pin": 12
+    },
+    "reset_timeout_seconds": 0.5
 }

@@ -28,6 +28,15 @@ class ControlState {
         this.ws.onerror = () => {
             this.ws.close();
         };
+
+        this.ws.onmessage = event => {
+            if (event.data == "occupied") {
+                document.getElementById('message-control').innerText = 'Control is taken by another client';
+                this.ws.close();
+            } else if (event.data == "ok") {
+                document.getElementById('message-control').innerText = '';
+            }
+        };
     }
 
     driveCmd() {

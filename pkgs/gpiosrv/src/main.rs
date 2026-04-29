@@ -1,114 +1,129 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[macro_use]
 extern crate rocket;
-use rocket::tokio::sync::{Mutex, MutexGuard, MappedMutexGuard};
+use rocket::tokio::sync::Mutex;
 use rocket_ws as ws;
 use rust_pigpio as gpio;
 
 mod motor;
 
-fn oneminute() -> Duration {
-    Duration::from_secs_f32(60.0)
+fn one() -> f32 {
+    1.0
 }
 
 #[derive(Clone, serde::Deserialize)]
 struct Config {
     drive: motor::Config,
     turn: motor::Config,
-    #[serde(default="oneminute")]
-    gpio_timeout: Duration,
+    #[serde(default = "one")]
+    reset_timeout_seconds: f32,
 }
 
-struct GpioData {
+struct Peripherals {
     drive: motor::Motor,
     turn: motor::Motor,
     running_since: Instant,
 }
 
+impl Peripherals {
+    fn try_init(config: &Config) -> Result<Self, String> {
+        match gpio::initialize() {
+            Ok(_) => {
+                let peri = Peripherals {
+                    drive: motor::Motor::new(&config.drive),
+                    turn: motor::Motor::new(&config.turn),
+                    running_since: Instant::now(),
+                };
+                Ok(peri)
+            }
+
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Drop for Peripherals {
+    fn drop(&mut self) {
+        eprintln!("drop");
+        gpio::terminate();
+    }
+}
+
+enum PeriperalsState {
+    Uninit,
+    Taken,
+    Ready(Peripherals),
+}
+
 struct StateData {
     config: Config,
-    gpio: Mutex<Option<GpioData>>,
+    peri: Mutex<PeriperalsState>,
+}
+
+enum TakePeripheralsError {
+    Taken,
+    Error(String),
 }
 
 impl StateData {
     pub fn new(config: Config) -> Self {
         StateData {
             config,
-            gpio: Mutex::new(None),
+            peri: Mutex::new(PeriperalsState::Uninit),
         }
     }
 
-    pub fn ensure_gpio(&self) -> Option<MappedMutexGuard<GpioData>> {
-        let gpio = self.gpio.try_lock();
-        let mut gpio = match gpio {
+    pub fn try_take_peripherals(&self) -> Result<Peripherals, TakePeripheralsError> {
+        let state = self.peri.try_lock();
+        let mut state = match state {
             Ok(x) => x,
-            Err(_) => return None,
+            Err(e) => return Err(TakePeripheralsError::Error(e.to_string())),
         };
 
-        if gpio.is_none() {
-            match gpio::initialize() {
-                Ok(_) => {
-                    *gpio = Some(GpioData {
-                        drive: motor::Motor::new(&self.config.drive),
-                        turn: motor::Motor::new(&self.config.turn),
-                        running_since: Instant::now(),
-                    });
+        match &*state {
+            PeriperalsState::Uninit => match Peripherals::try_init(&self.config) {
+                Ok(peri) => {
+                    *state = PeriperalsState::Taken;
+                    Ok(peri)
                 }
 
                 Err(e) => {
                     eprintln!(
-                        "Count not create gpio. Running in mock mode. cause: {:?}",
+                        "Count not initialize peripherals. Running in mock mode. cause: {:?}",
                         e
                     );
-                    return None;
+                    Err(TakePeripheralsError::Error(e.to_string()))
                 }
-            };
-        }
+            },
 
-        Some(MutexGuard::map(gpio, |x| x.as_mut().unwrap()))
-    }
+            PeriperalsState::Taken => Err(TakePeripheralsError::Taken),
 
-    pub async fn stop_gpio(&self) {
-        let mut gpio = self.gpio.lock().await;
-
-        if gpio.is_some() {
-            eprintln!("stopping gpio");
-            gpio::terminate();
-            *gpio = None;
+            PeriperalsState::Ready(_) => {
+                let state = std::mem::replace(&mut *state, PeriperalsState::Taken);
+                match state {
+                    PeriperalsState::Ready(peri) => Ok(peri),
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 
-    pub fn stop_gpio_if_timeout(&self) {
-        let gpio = self.gpio.try_lock();
-        let mut gpio = match gpio {
+    pub fn return_peripherals(&self, mut peri: Peripherals) {
+        peri.drive.set_state(motor::MotorState::Stopped);
+        peri.turn.set_state(motor::MotorState::Stopped);
+
+        let state = self.peri.try_lock();
+        let mut state = match state {
             Ok(x) => x,
-            Err(_) => return,
+            Err(e) => panic!("Could not lock mutex to return peripherals: {e}"),
         };
 
-        if gpio.is_some() && (Instant::now() - gpio.as_ref().unwrap().running_since) > self.config.gpio_timeout {
-            eprintln!("stopping gpio on timeout");
-            gpio::terminate();
-            *gpio = None;
-        }
+        *state = PeriperalsState::Ready(peri);
     }
 }
-
-impl Drop for StateData {
-    fn drop(&mut self) {
-        eprintln!("drop");
-        let gpio = self.gpio.get_mut().take();
-        if gpio.is_some() {
-            drop(gpio);
-            gpio::terminate();
-        }
-    }
-}
-
-type State = Arc<StateData>;
 
 fn parse_motor_cmd(s: &str) -> Option<motor::MotorState> {
     match s {
@@ -121,50 +136,89 @@ fn parse_motor_cmd(s: &str) -> Option<motor::MotorState> {
 }
 
 #[get("/ws")]
-fn ws_control(ws: ws::WebSocket, state: &rocket::State<State>) -> ws::Channel<'static> {
-    let state = (*state).clone();
-    ws.channel(move |mut stream| Box::pin(async move {
-        use rocket::futures::StreamExt;
-        while let Some(msg) = stream.next().await {
-            let msg = match msg {
-                Ok(msg) => msg,
-                Err(_) => break,
-            };
-            let text = match msg {
-                ws::Message::Text(t) => t,
-                ws::Message::Close(_) => break,
-                _ => continue,
-            };
+fn ws_control<'a>(
+    ws: ws::WebSocket,
+    state: &'a rocket::State<StateData>,
+) -> Result<ws::Channel<'a>, rocket::http::Status> {
+    let mut peri = match state.try_take_peripherals() {
+        Ok(peri) => peri,
+        Err(TakePeripheralsError::Taken) => {
+            let channel = ws.channel(|mut stream| {
+                Box::pin(async move {
+                    use rocket::futures::SinkExt;
+                    let _ = stream.send(ws::Message::Text(String::from("occupied"))).await;
+                    Ok(())
+                })
+            });
+            return Ok(channel);
+        }
+        Err(TakePeripheralsError::Error(e)) => {
+            eprintln!("Could not lock peripherals: {e}");
+            return Err(rocket::http::Status::InternalServerError);
+        }
+    };
 
-            // Format: "drive_cmd,turn_cmd" e.g. "f,l", "s,s"
-            let parts: Vec<&str> = text.split(',').collect();
-            if parts.len() != 2 {
-                continue;
+    let channel = ws.channel(move |mut stream| {
+        Box::pin(async move {
+            use rocket::futures::{SinkExt, StreamExt};
+            let mksleep = || -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
+                Box::pin(rocket::tokio::time::sleep(Duration::from_secs_f32(
+                    state.config.reset_timeout_seconds,
+                )))
+            };
+            let _ = stream.send(ws::Message::Text(String::from("ok"))).await;
+            let mut timeout = mksleep();
+            loop {
+                let text: String;
+                rocket::tokio::select! {
+                    Some(Ok(msg)) = stream.next() => {
+                        match msg {
+                            ws::Message::Text(t) => {
+                                timeout = mksleep();
+                                text = t;
+                            }
+                            ws::Message::Close(_) => break,
+                            _ => continue,
+                        }
+                    }
+
+                    _ = &mut timeout => {
+                        text = String::from("s,s");
+                        timeout = Box::pin(rocket::futures::future::pending());
+                    }
+
+                    else => break,
+                };
+
+                // Format: "drive_cmd,turn_cmd" e.g. "f,l", "s,s"
+                let parts: Vec<&str> = text.split(',').collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+
+                let drive_cmd = match parse_motor_cmd(parts[0]) {
+                    Some(cmd) => cmd,
+                    None => continue,
+                };
+                let turn_cmd = match parse_motor_cmd(parts[1]) {
+                    Some(cmd) => cmd,
+                    None => continue,
+                };
+
+                peri.drive.set_state(drive_cmd);
+                peri.turn.set_state(turn_cmd);
             }
 
-            let drive_cmd = match parse_motor_cmd(parts[0]) {
-                Some(cmd) => cmd,
-                None => continue,
-            };
-            let turn_cmd = match parse_motor_cmd(parts[1]) {
-                Some(cmd) => cmd,
-                None => continue,
-            };
+            // Stop motors when client disconnects
+            peri.drive.set_state(motor::MotorState::Stopped);
+            peri.turn.set_state(motor::MotorState::Stopped);
+            state.return_peripherals(peri);
 
-            if let Some(mut gpio) = state.ensure_gpio() {
-                gpio.drive.set_state(drive_cmd);
-                gpio.turn.set_state(turn_cmd);
-            }
-        }
+            Ok(())
+        })
+    });
 
-        // Stop motors when client disconnects
-        if let Some(mut gpio) = state.ensure_gpio() {
-            gpio.drive.set_state(motor::MotorState::Stopped);
-            gpio.turn.set_state(motor::MotorState::Stopped);
-        }
-
-        Ok(())
-    }))
+    Ok(channel)
 }
 
 #[launch]
@@ -178,43 +232,8 @@ async fn rocket() -> _ {
         .unwrap(),
     )
     .unwrap();
-    let state = StateData::new(config.clone());
-    let state = Arc::new(state);
-
-    let s1 = state.clone();
-    rocket::tokio::spawn(async move {
-        let state = s1;
-
-        loop {
-            rocket::tokio::time::sleep(Duration::from_secs_f32(config.drive.shutdown_timeout))
-                .await;
-            if let Some(ref mut gpio) = *state.gpio.lock().await {
-                gpio.drive.check_timeout();
-            }
-        }
-    });
-    let s2 = state.clone();
-    rocket::tokio::spawn(async move {
-        let state = s2;
-
-        loop {
-            rocket::tokio::time::sleep(Duration::from_secs_f32(config.turn.shutdown_timeout)).await;
-            if let Some(ref mut gpio) = *state.gpio.lock().await {
-                gpio.turn.check_timeout();
-            }
-        }
-    });
-    let s3 = state.clone();
-    rocket::tokio::spawn(async move {
-        let state = s3;
-
-        loop {
-            rocket::tokio::time::sleep(Duration::from_secs_f32(5.0)).await;
-            state.stop_gpio_if_timeout();
-        }
-    });
 
     rocket::build()
-        .manage(state.clone())
+        .manage(StateData::new(config.clone()))
         .mount("/", routes![ws_control])
 }
