@@ -31,3 +31,10 @@ Edit `flake.nix` - `deploy.nodes.raspi-car.hostname` to specify the actual ip ad
 ```sh
 deploy
 ```
+
+## Notes on latency
+
+The current implementation achieves ~300ms of camera-to-screen latency on a good wifi connection.
+It is possible to get lower than that but likely not in a browser. FPS is also limited to about 15 - this is likely caused by mediamtx having to repackage stuff between stream formats, which hits the CPU bottleneck.
+
+The theoretical best option is RTP directly from gstreamer to e.g. mpv with low-latency profile. This also allows higher FPS (at least 30, maybe slightly more), which improves visuals. All in all the RTP setup achieved latency of about 150ms. (not included here but would look something like this: `gst-launch-1.0 v4l2src ! video/x-h264, width=800, height=600, framerate=30/1 ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=... port=...`)
