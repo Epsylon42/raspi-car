@@ -1,0 +1,10 @@
+[Unit]
+Description=Wifi provisioning
+Requires=NetworkManager.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=@sysconfdir@/balena-wifi-connect.env
+ExecStart=@bindir@/wifi-connect --portal-ssid "$SSID" --portal-gateway "$GATEWAY"
+Restart=on-failure
+RestartSec=5

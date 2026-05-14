@@ -1,0 +1,46 @@
+header:
+  version: 1
+machine: raspberrypi0-wifi
+distro: mydistro
+repos:
+  meta-rpicar:
+    path: ./meta-mylayer
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    branch: whinlatter
+    layers:
+      meta:
+  meta-openembedded:
+    url: https://git.openembedded.org/meta-openembedded
+    branch: whinlatter
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    branch: whinlatter
+    layers:
+      meta-yocto-bsp:
+      meta-poky:
+  meta-raspberrypi:
+    url: https://git.yoctoproject.org/meta-raspberrypi
+    branch: whinlatter
+  meta-swupdate:
+    url: https://github.com/sbabic/meta-swupdate
+    branch: whinlatter
+
+local_conf_header:
+  a: |
+    EXTRA_IMAGE_FEATURES += "allow-empty-password empty-root-password allow-root-login"
+  b: |
+    BB_HASHSERVE_UPSTREAM = 'wss://hashserv.yoctoproject.org/ws'
+    SSTATE_MIRRORS ?= "file://.* http://sstate.yoctoproject.org/all/PATH;downloadfilename=PATH"
+  conf: |
+    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
+
+    SSH_AUTH_PUBKEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIfvu+N0t1A/t9RAHlnstWEYjwMdZb7xd18VrHuDwiNg epsy@tp25"
+    BALENA_WIFI_SSID = "raspi-car"
+    FILESYSTEM_PERMS_TABLES:remove = "files/fs-perms-volatile-log.txt"
+
+    # DISTRO_FEATURES:append = " rpicar-ota"
