@@ -3,7 +3,7 @@ software =
     version = "@@DISTRO_VERSION@@";
 
     @@MACHINE@@ = {
-        hardware-compatibility: [ "1.0"];
+        hardware-compatibility: ["1.0"];
         stable : {
             copy1 : {
                 images: (
@@ -48,5 +48,5 @@ software =
                 );
             };
         };
-    }
+    };
 }

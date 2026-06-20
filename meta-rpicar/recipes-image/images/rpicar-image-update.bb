@@ -14,6 +14,5 @@ SWUPDATE_IMAGES = "rpicar-image"
 
 # the chosen format for the deployable image
 SWUPDATE_IMAGES_FSTYPES[rpicar-image] = ".rootfs.ext4.gz"
-SWUPDATE_IMAGES_FSTYPES[uImage] = ".bin"
 
 inherit swupdate

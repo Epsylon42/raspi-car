@@ -4,7 +4,7 @@ machine: raspberrypi0-wifi
 distro: mydistro
 repos:
   meta-rpicar:
-    path: ./meta-mylayer
+    path: ./meta-rpicar
   openembedded-core:
     url: https://git.openembedded.org/openembedded-core
     branch: whinlatter
@@ -43,4 +43,6 @@ local_conf_header:
     BALENA_WIFI_SSID = "raspi-car"
     FILESYSTEM_PERMS_TABLES:remove = "files/fs-perms-volatile-log.txt"
 
-    # DISTRO_FEATURES:append = " rpicar-ota"
+    DISTRO_FEATURES:append = " rpicar-ota"
+
+target: rpicar-image

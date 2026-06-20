@@ -8,7 +8,7 @@ WKS_FILE = "${@bb.utils.contains('DISTRO_FEATURES', 'rpicar-ota', \
                                  'sd-card-layout-default.wks', \
                                  d)}"
 
-EXTRA_IMAGE_INSTALL:append:df-rpicar-ota = " \
+IMAGE_INSTALL:append:df-rpicar-ota = " \
     swupdate \
     u-boot-fw-utils \
 "
