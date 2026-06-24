@@ -1,0 +1,14 @@
+{
+    "drive": {
+        "pos_pin": 13,
+        "neg_pin": 19,
+        "pwm_frequency": 10000,
+        "pwm_default_power": 60,
+        "auto_brake": false
+    },
+    "turn": {
+        "pos_pin": 18,
+        "neg_pin": 12
+    },
+    "reset_timeout_seconds": 0.5
+}

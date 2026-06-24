@@ -1,0 +1,11 @@
+[Unit]
+Description=
+Requires=network.target
+
+[Service]
+ExecStart=@@bindir@@/caddy run
+WorkingDirectory=@@workdir@@
+Restart=always
+
+[Install]
+WantedBy=rc-control.target

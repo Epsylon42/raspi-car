@@ -37,11 +37,6 @@ BALENA_WIFI_GATEWAY ??= "192.168.42.1"
 export BALENA_WIFI_SSID
 export BALENA_WIFI_GATEWAY
 
-SYSTEMD_SERVICE:${PN} = " \
-    wifi-provisioning-check.service \
-    balena-wifi-connect.service \
-"
-
 do_install[vardeps] += "BALENA_WIFI_SSID"
 do_install[vardeps] += "BALENA_WIFI_GATEWAY"
 
@@ -72,9 +67,11 @@ do_install:append() {
     chmod 0644 ${D}${sysconfdir}/balena-wifi-connect.env
 }
 
+SYSTEMD_SERVICE:${PN} = " \
+    wifi-provisioning-check.service \
+    balena-wifi-connect.service \
+"
 FILES:${PN} += " \
     ${datadir}/balena-wifi-connect \
-    ${systemd_system_unitdir}/wifi-provisioning-check.service \
-    ${systemd_system_unitdir}/balena-wifi-connect.service \
     ${sysconfdir}/balena-wifi-connect.env \
 "
