@@ -5,25 +5,32 @@ VERSION = "1.0"
 FILESEXTRAPATHS:append = ":${THISDIR}"
 SRC_URI = " \
     file://gpiosrv-1.0 \
-    file://gpiosrv.service \
 "
 
 inherit cargo cargo-update-recipe-crates pkgconfig systemd
 require ${BPN}-crates.inc
 
 DEPENDS = "pigpio"
-RDEPENDS:${PN} = "pigpio rccontrol-systemd-target"
+RDEPENDS:${PN} = "pigpio rccontrol-systemd"
 
 do_install:append() {
     install -d ${D}${cardatadir}
     install ${S}/gpiosrv.json ${D}${cardatadir}
 
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${UNPACKDIR}/gpiosrv.service ${D}${systemd_system_unitdir}/gpiosrv.service
-    sed -i \
-        -e 's|@@bindir@@|${bindir}|g' \
-        -e 's|@@workdir@@|${cardatadir}|g' \
-        ${D}${systemd_system_unitdir}/gpiosrv.service
+    cat >${D}${systemd_system_unitdir}/gpiosrv.service <<EOF
+[Unit]
+Description=server for car control via gpio
+After=rc-control.target
+
+[Service]
+ExecStart=${bindir}/gpiosrv
+WorkingDirectory=${cardatadir}
+Environment="ROCKET_PORT=3000"
+
+[Install]
+WantedBy=rc-control.target
+EOF
 }
 
 SYSTEMD_SERVICE:${PN} = "gpiosrv.service"

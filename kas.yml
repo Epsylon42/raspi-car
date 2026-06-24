@@ -17,6 +17,7 @@ repos:
       meta-oe:
       meta-python:
       meta-networking:
+      meta-multimedia:
   meta-yocto:
     url: https://git.yoctoproject.org/meta-yocto
     branch: whinlatter
@@ -37,7 +38,7 @@ local_conf_header:
     BB_HASHSERVE_UPSTREAM = 'wss://hashserv.yoctoproject.org/ws'
     SSTATE_MIRRORS ?= "file://.* http://sstate.yoctoproject.org/all/PATH;downloadfilename=PATH"
   conf: |
-    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch"
+    LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch commercial"
 
     SSH_AUTH_PUBKEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIfvu+N0t1A/t9RAHlnstWEYjwMdZb7xd18VrHuDwiNg epsy@tp25"
     BALENA_WIFI_SSID = "raspi-car"

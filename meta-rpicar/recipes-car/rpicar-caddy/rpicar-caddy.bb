@@ -4,10 +4,10 @@ VERSION = "1.0"
 
 SRC_URI = " \
     file://caddy \
-    file://caddy.service \
 "
+S = "${UNPACKDIR}"
 
-RDEPENDS:${PN} = "caddy rccontrol-systemd-target"
+RDEPENDS:${PN} = "caddy rccontrol-systemd"
 
 inherit systemd
 
@@ -17,11 +17,19 @@ do_install() {
     chmod -R 0644 ${D}${cardatadir}/http
 
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${UNPACKDIR}/caddy.service ${D}${systemd_system_unitdir}/caddy.service
-    sed -i \
-        -e 's|@@bindir@@|${bindir}|g' \
-        -e 's|@@workdir@@|${cardatadir}/http|g' \
-        ${D}${systemd_system_unitdir}/caddy.service
+    cat >${D}${systemd_system_unitdir}/caddy.service <<EOF
+[Unit]
+Description=caddy
+After=rc-control.target
+
+[Service]
+ExecStart=${bindir}/caddy run
+WorkingDirectory=${cardatadir}/http
+Restart=always
+
+[Install]
+WantedBy=rc-control.target
+EOF
 }
 
 SYSTEMD_SERVICE:${PN} = "caddy.service"
