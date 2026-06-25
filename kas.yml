@@ -1,7 +1,7 @@
 header:
   version: 1
 machine: raspberrypi0-wifi
-distro: mydistro
+distro: rpicar
 repos:
   meta-rpicar:
     path: ./meta-rpicar
