@@ -7,7 +7,7 @@ OnFailure=balena-wifi-connect.service
 
 [Service]
 Type=oneshot
-ExecStart=@bindir@/nm-online -t 10
+ExecStart=@@bindir@@/nm-online -t 10
 
 [Install]
 WantedBy=default.target

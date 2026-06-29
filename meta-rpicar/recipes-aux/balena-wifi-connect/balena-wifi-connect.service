@@ -4,7 +4,9 @@ Requires=NetworkManager.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=@sysconfdir@/balena-wifi-connect.env
-ExecStart=@bindir@/wifi-connect --portal-ssid "$SSID" --portal-gateway "$GATEWAY"
+EnvironmentFile=@@sysconfdir@@/balena-wifi-connect.env
+ExecStart=@@bindir@@/wifi-connect --portal-ssid "$SSID" --portal-gateway "$GATEWAY"
+ExecStartPre=@@bindir@@systemctl stop caddy.service;
+ExecStartPost=@@bindir@@/systemctl enable --now caddy.service;
 Restart=on-failure
 RestartSec=5

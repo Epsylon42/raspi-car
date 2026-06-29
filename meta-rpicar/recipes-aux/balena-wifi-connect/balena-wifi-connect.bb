@@ -48,8 +48,8 @@ do_install:append() {
     install -m 0644 ${UNPACKDIR}/wifi-provisioning-check.service ${D}${systemd_system_unitdir}/wifi-provisioning-check.service
     install -m 0644 ${UNPACKDIR}/balena-wifi-connect.service ${D}${systemd_system_unitdir}/balena-wifi-connect.service
     sed -i \
-        -e 's|@sysconfdir@|${sysconfdir}|g' \
-        -e 's|@bindir@|${bindir}|g' \
+        -e 's|@@sysconfdir@@|${sysconfdir}|g' \
+        -e 's|@@bindir@@|${bindir}|g' \
         ${D}${systemd_system_unitdir}/wifi-provisioning-check.service \
         ${D}${systemd_system_unitdir}/balena-wifi-connect.service
 
