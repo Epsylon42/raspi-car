@@ -1,4 +1,4 @@
-SUMMARY = "test config"
+SUMMARY = "misc config"
 DESCRIPTION = ""
 LICENSE = "MIT"
 

@@ -92,7 +92,7 @@ impl StateData {
 
                 Err(e) => {
                     eprintln!(
-                        "Count not initialize peripherals. Running in mock mode. cause: {:?}",
+                        "Count not initialize peripherals. Cause: {:?}",
                         e
                     );
                     Err(TakePeripheralsError::Error(e.to_string()))

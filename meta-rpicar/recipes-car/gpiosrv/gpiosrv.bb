@@ -2,7 +2,6 @@ SUMMARY = "web server for controlling gpio"
 LICENSE = "CLOSED"
 VERSION = "1.0"
 
-FILESEXTRAPATHS:append = ":${THISDIR}"
 SRC_URI = " \
     file://gpiosrv-1.0 \
 "
@@ -27,6 +26,7 @@ After=rc-control.target
 ExecStart=${bindir}/gpiosrv
 WorkingDirectory=${cardatadir}
 Environment="ROCKET_PORT=3000"
+Restart=always
 
 [Install]
 WantedBy=rc-control.target

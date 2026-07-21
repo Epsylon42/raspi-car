@@ -14,7 +14,7 @@ inherit systemd
 do_install() {
     install -d ${D}${cardatadir}/http
     cp -r ${UNPACKDIR}/caddy/* ${D}${cardatadir}/http
-    chmod -R 0644 ${D}${cardatadir}/http
+    chmod -R 0755 ${D}${cardatadir}/http
 
     install -d ${D}${systemd_system_unitdir}
     cat >${D}${systemd_system_unitdir}/caddy.service <<EOF

@@ -19,5 +19,6 @@ do_install() {
     fi
 }
 
+ALLOW_EMPTY:${PN} = "1"
 FILES:${PN} += "${ROOT_HOME}/.ssh/authorized_keys"
 FILES:${PN} += "${sysconfdir}/ssh/sshd_config"
