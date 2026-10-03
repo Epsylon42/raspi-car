@@ -14,8 +14,6 @@ do_install() {
         install -d ${D}${ROOT_HOME}/.ssh
         echo "${SSH_AUTH_PUBKEY}" >> ${D}${ROOT_HOME}/.ssh/authorized_keys
         chmod 0600 ${D}${ROOT_HOME}/.ssh/authorized_keys
-    else
-        bbfatal "${PN} requires SSH_AUTH_PUBKEY variable to be set"
     fi
 }
 

@@ -3,16 +3,21 @@ header:
 machine: raspberrypi0-wifi
 distro: rpicar
 repos:
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    commit: fae9db3168dbff1b8c76fe9c6726a9687ff97514 # 6.0.3
+    layers:
+      .: disabled
   meta-rpicar:
     path: ./meta-rpicar
   openembedded-core:
     url: https://git.openembedded.org/openembedded-core
-    branch: whinlatter
+    commit: ef022bf82d79015802309d14c28b13373ebe53f5 # 6.0.3 / wrynose
     layers:
       meta:
   meta-openembedded:
     url: https://git.openembedded.org/meta-openembedded
-    branch: whinlatter
+    commit: 47d7dbdd10890bbd429bc0cccbe14435c37e5af1 # wrynose
     layers:
       meta-oe:
       meta-python:
@@ -20,23 +25,20 @@ repos:
       meta-multimedia:
   meta-yocto:
     url: https://git.yoctoproject.org/meta-yocto
-    branch: whinlatter
+    commit: 7c25b11156553145fa6b241a2d4f65d94438f804 # wrynose
     layers:
       meta-yocto-bsp:
       meta-poky:
   meta-raspberrypi:
     url: https://git.yoctoproject.org/meta-raspberrypi
-    branch: whinlatter
+    commit: f62c67921474370829d24a4fa01ef88543f3906b # wrynose
   meta-swupdate:
     url: https://github.com/sbabic/meta-swupdate
-    branch: whinlatter
+    commit: c0658455606b3a37d85d7cf03703d8b8d2ead667 # wrynose
 
 local_conf_header:
   conf: |
     EXTRA_IMAGE_FEATURES += "allow-empty-password empty-root-password allow-root-login"
-
-    BB_HASHSERVE_UPSTREAM = 'wss://hashserv.yoctoproject.org/ws'
-    SSTATE_MIRRORS ?= "file://.* http://sstate.yoctoproject.org/all/PATH;downloadfilename=PATH"
 
     LICENSE_FLAGS_ACCEPTED = "synaptics-killswitch commercial"
     BALENA_WIFI_SSID = "raspi-car"
